@@ -423,7 +423,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               <Tooltip 
                 cursor={{fill: '#f8fafc'}}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number) => [`${value} unidades`, 'Total de Saídas']}
+                formatter={((value: any) => [`${value} unidades`, 'Total de Saídas']) as any}
               />
               <Bar dataKey="totalOutput" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={50} />
             </BarChart>

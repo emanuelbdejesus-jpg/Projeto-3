@@ -1,11 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
 import { Withdrawal } from '../types';
-import { Calendar, User, Info, FileText, Tag as TagIcon, Filter, Search, HardHat, Users, Download, ChevronRight } from 'lucide-center';
-import { Drill } from 'lucide-react'; // Fix missing import for icons if any, though lucide-react is the main source
-
-// Note: Re-importing lucide-react icons as they were referenced correctly in the original file but the user prompt content had 'lucide-center' which was likely a typo in my thought process or input, correcting to lucide-react.
-import { Calendar as Cal, User as Usr, Info as Inf, FileText as FileT, Tag as TagI, Filter as Filt, Search as Sea, HardHat as HardH, Users as Usrs, Download as Down, ChevronRight as ChevR } from 'lucide-react';
+import { 
+  Calendar as Cal, 
+  User as Usr, 
+  Info as Inf, 
+  FileText as FileT, 
+  Tag as TagI, 
+  Filter as Filt, 
+  Search as Sea, 
+  HardHat as HardH, 
+  Users as Usrs, 
+  Download as Down, 
+  ChevronRight as ChevR 
+} from 'lucide-react';
 
 interface Props {
   withdrawals: Withdrawal[];
