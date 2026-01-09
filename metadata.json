@@ -1,0 +1,5 @@
+{
+  "name": "STOPER - Gestão de Ferramental de Perfuração",
+  "description": "Sistema especializado para gestão de estoque de ferramentas de perfuração (T45, T50, T51), controle de retiradas, monitoramento de consumo e insights via IA.",
+  "requestFramePermissions": []
+}
