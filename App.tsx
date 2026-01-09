@@ -6,8 +6,7 @@ import Dashboard from './components/Dashboard';
 import InventoryList from './components/InventoryList';
 import WithdrawalForm from './components/WithdrawalForm';
 import HistoryList from './components/HistoryList';
-import { LayoutDashboard, ClipboardList, Package, History, Info, AlertTriangle, X, Bell } from 'lucide-react';
-import { getInventoryInsights } from './services/geminiService';
+import { LayoutDashboard, ClipboardList, Package, History, AlertTriangle, X, Bell } from 'lucide-react';
 
 interface Toast {
   id: string;
@@ -28,23 +27,12 @@ const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdraw' | 'history'>('dashboard');
   const [inventoryFilter, setInventoryFilter] = useState<string>('');
-  const [aiInsights, setAiInsights] = useState<string>('Carregando insights da IA...');
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
     localStorage.setItem('stoper_inventory', JSON.stringify(inventory));
     localStorage.setItem('stoper_withdrawals', JSON.stringify(withdrawals));
   }, [inventory, withdrawals]);
-
-  useEffect(() => {
-    const fetchInsights = async () => {
-      const insights = await getInventoryInsights(inventory, withdrawals);
-      setAiInsights(insights || "Nenhum insight disponível.");
-    };
-    if (activeTab === 'dashboard') {
-      fetchInsights();
-    }
-  }, [activeTab, inventory, withdrawals]);
 
   const addToast = (message: string, type: 'warning' | 'info' | 'success' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -196,7 +184,6 @@ const App: React.FC = () => {
           <Dashboard 
             inventory={inventory} 
             withdrawals={withdrawals} 
-            aiInsights={aiInsights}
             onNavigateToInventory={handleNavigateToInventory}
           />
         )}

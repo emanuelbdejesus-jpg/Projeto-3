@@ -3,18 +3,17 @@ import React, { useMemo, useState } from 'react';
 import { Tool, Withdrawal, ToolModel } from '../types';
 import { REASONS } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Zap, Box, TrendingUp, Sparkles, AlertTriangle, Layers, ShieldCheck, Hexagon, FileWarning, Filter, XCircle, ArrowRight, BarChart3 } from 'lucide-react';
+import { Zap, Box, TrendingUp, AlertTriangle, Layers, ShieldCheck, Hexagon, FileWarning, Filter, XCircle, ArrowRight, BarChart3 } from 'lucide-react';
 
 interface Props {
   inventory: Tool[];
   withdrawals: Withdrawal[];
-  aiInsights: string;
   onNavigateToInventory: (filter: string) => void;
 }
 
 type TimeRange = 'diario' | 'semanal' | 'mensal';
 
-const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavigateToInventory }) => {
+const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInventory }) => {
   const [totalTimeRange, setTotalTimeRange] = useState<TimeRange>('diario');
   
   // Date Filters
@@ -56,7 +55,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
   }, [withdrawals, startDate, endDate]);
 
   const hasteStock = useMemo(() => {
-    return ['T51', 'T50', 'T45'].map(model => {
+    return (['T51', 'T50', 'T45'] as ToolModel[]).map(model => {
       const tool = inventory.find(t => t.type === 'Haste' && t.model === model);
       return {
         model,
@@ -67,7 +66,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
   }, [inventory]);
 
   const punhoStock = useMemo(() => {
-    return ['T51', 'T50', 'T45'].map(model => {
+    return (['T51', 'T50', 'T45'] as ToolModel[]).map(model => {
       const tool = inventory.find(t => t.type === 'Punho' && t.model === model);
       return {
         model,
@@ -79,15 +78,15 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
 
   const bitStock = useMemo(() => {
     const bitSpecs = [
-      { type: "Bit 4,5''", model: 'T51' },
-      { type: "Bit 3,5''", model: 'T51' },
-      { type: "Bit 4,5''", model: 'T50' },
-      { type: "Bit 4,5''", model: 'T45' },
-      { type: "Bit 3,5''", model: 'T45' },
+      { type: "Bit 4,5''" as const, model: 'T51' as ToolModel },
+      { type: "Bit 3,5''" as const, model: 'T51' as ToolModel },
+      { type: "Bit 4,5''" as const, model: 'T50' as ToolModel },
+      { type: "Bit 4,5''" as const, model: 'T45' as ToolModel },
+      { type: "Bit 3,5''" as const, model: 'T45' as ToolModel },
     ];
 
     return bitSpecs.map(spec => {
-      const tool = inventory.find(t => t.type === spec.type && t.model === spec.model as ToolModel);
+      const tool = inventory.find(t => t.type === spec.type && t.model === spec.model);
       return {
         name: `${spec.type} - ${spec.model}`,
         model: spec.model,
@@ -417,10 +416,10 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
 
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={totalEvolutionData}>
+            <BarChart data={totalEvolutionData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fontSize: 12}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12}} />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
+              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
               <Tooltip 
                 cursor={{fill: '#f8fafc'}}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -476,10 +475,10 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={detailedTypeConsumptionData}>
+              <BarChart data={detailedTypeConsumptionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, angle: -15, textAnchor: 'end'}} height={60} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, angle: -15, textAnchor: 'end'} as any} height={60} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
                 <Tooltip 
                   cursor={{fill: '#f8fafc'}}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -507,12 +506,12 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={reasonConsumptionData} layout="vertical" margin={{ left: 40, right: 40 }}>
+              <BarChart data={reasonConsumptionData} layout="vertical" margin={{ left: 20, right: 40, top: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" axisLine={false} tickLine={false} hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={140} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={140} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' } as any} />
                 <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={24} label={{ position: 'right', fontSize: 12, fontWeight: 800, fill: '#1e293b' }}>
+                <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={24} label={{ position: 'right', fontSize: 12, fontWeight: 800, fill: '#1e293b' } as any}>
                   {reasonConsumptionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={reasonColors[index % reasonColors.length]} />
                   ))}
@@ -520,25 +519,6 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, aiInsights, onNavi
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
-
-      <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <Sparkles size={120} />
-        </div>
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Sparkles size={20} className="text-blue-400" />
-          Análise Preditiva e Insights
-        </h3>
-        <div className="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed max-h-[220px] overflow-y-auto custom-scrollbar">
-          {aiInsights.split('\n').map((line, i) => (
-            <p key={i} className="mb-2">{line}</p>
-          ))}
-        </div>
-        <div className="mt-4 pt-4 border-t border-slate-800 flex items-center gap-2 text-xs text-slate-400">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-          Processado por Gemini Flash
         </div>
       </div>
 
