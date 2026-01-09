@@ -421,9 +421,9 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
               <Tooltip 
-                cursor={{fill: '#f8fafc'}}
+                cursor={{fill: '#f8fafc'} as any}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={((value: any) => [`${value} unidades`, 'Total de Saídas']) as any}
+                formatter={(value: any) => [`${value} unidades`, 'Total de Saídas'] as any}
               />
               <Bar dataKey="totalOutput" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={50} />
             </BarChart>
@@ -480,7 +480,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, angle: -15, textAnchor: 'end'} as any} height={60} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
                 <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
+                  cursor={{fill: '#f8fafc'} as any}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                 />
                 <Bar dataKey="total" radius={[4, 4, 0, 0]} maxBarSize={40}>
@@ -510,7 +510,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" axisLine={false} tickLine={false} hide />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={140} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' } as any} />
-                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                <Tooltip cursor={{fill: '#f8fafc'} as any} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                 <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={24} label={{ position: 'right', fontSize: 12, fontWeight: 800, fill: '#1e293b' } as any}>
                   {reasonConsumptionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={reasonColors[index % reasonColors.length]} />
