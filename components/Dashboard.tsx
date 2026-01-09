@@ -20,9 +20,14 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  // Helper to find the earliest withdrawal date
+  // Helper to find the earliest withdrawal date or default to 7 days ago if empty
   const earliestWithdrawalDate = useMemo(() => {
-    if (withdrawals.length === 0) return null;
+    if (withdrawals.length === 0) {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
     const timestamps = withdrawals.map(w => new Date(w.date).getTime());
     const min = Math.min(...timestamps);
     const date = new Date(min);
@@ -96,9 +101,10 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
     });
   }, [inventory]);
 
-  const withdrawalsToday = withdrawals.filter(w => 
-    new Date(w.date).toDateString() === new Date().toDateString()
-  ).length;
+  const withdrawalsTodayCount = useMemo(() => {
+    const today = new Date().toDateString();
+    return withdrawals.filter(w => new Date(w.date).toDateString() === today).length;
+  }, [withdrawals]);
 
   const lowStockTools = useMemo(() => inventory.filter(t => t.quantity <= t.minThreshold), [inventory]);
 
@@ -133,50 +139,62 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
     return new Date(d.setDate(diff));
   };
 
+  const isSameDay = (d1: Date, d2: Date) => {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+  };
+
   const getEvolutionDataForRange = (range: TimeRange) => {
-    if (!earliestWithdrawalDate) return [];
-    
     const data: any[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // If no withdrawals, show last 7 days as zeroed points
+    const startBase = earliestWithdrawalDate || new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     if (range === 'diario') {
-      let current = new Date(earliestWithdrawalDate);
+      let current = new Date(startBase);
       while (current <= today) {
-        const dateStr = current.toISOString().split('T')[0];
-        const dayWithdrawals = withdrawals.filter(w => w.date.startsWith(dateStr));
+        const currentRef = new Date(current);
+        const dayWithdrawals = withdrawals.filter(w => {
+          const wd = new Date(w.date);
+          return isSameDay(wd, currentRef);
+        });
         
         data.push({ 
-          label: current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          label: currentRef.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
           totalOutput: dayWithdrawals.reduce((sum, w) => sum + w.quantity, 0)
         });
         current.setDate(current.getDate() + 1);
       }
     } else if (range === 'semanal') {
-      let current = getStartOfWeek(earliestWithdrawalDate);
+      let current = getStartOfWeek(startBase);
       while (current <= today) {
+        const weekStart = new Date(current);
         const weekEnd = new Date(current);
         weekEnd.setDate(current.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
         const weekWithdrawals = withdrawals.filter(w => {
           const wd = new Date(w.date);
-          return wd >= current && wd <= weekEnd;
+          return wd >= weekStart && wd <= weekEnd;
         });
 
         data.push({ 
-          label: `Sem. ${current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`,
+          label: `Sem. ${weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`,
           totalOutput: weekWithdrawals.reduce((sum, w) => sum + w.quantity, 0)
         });
         current.setDate(current.getDate() + 7);
       }
     } else {
-      let current = new Date(earliestWithdrawalDate.getFullYear(), earliestWithdrawalDate.getMonth(), 1);
+      let current = new Date(startBase.getFullYear(), startBase.getMonth(), 1);
       const endLimit = new Date(today.getFullYear(), today.getMonth(), 1);
       
       while (current <= endLimit) {
-        const month = current.getMonth();
-        const year = current.getFullYear();
+        const currentRef = new Date(current);
+        const month = currentRef.getMonth();
+        const year = currentRef.getFullYear();
 
         const monthWithdrawals = withdrawals.filter(w => {
           const wd = new Date(w.date);
@@ -184,7 +202,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
         });
 
         data.push({ 
-          label: current.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+          label: currentRef.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
           totalOutput: monthWithdrawals.reduce((sum, w) => sum + w.quantity, 0)
         });
         current.setMonth(current.getMonth() + 1);
@@ -193,7 +211,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
     return data;
   };
 
-  const totalEvolutionData = useMemo(() => getEvolutionDataForRange(totalTimeRange), [withdrawals, inventory, totalTimeRange, earliestWithdrawalDate]);
+  const totalEvolutionData = useMemo(() => getEvolutionDataForRange(totalTimeRange), [withdrawals, totalTimeRange, earliestWithdrawalDate]);
 
   const modelColors: Record<ToolModel, string> = {
     'T51': '#2563eb',
@@ -258,7 +276,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
             <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Zap size={24} /></div>
             <span className="text-xs font-semibold text-slate-400 uppercase">Saídas Hoje</span>
           </div>
-          <p className="text-3xl font-bold text-slate-800">{withdrawalsToday}</p>
+          <p className="text-3xl font-bold text-slate-800">{withdrawalsTodayCount}</p>
           <p className="text-sm text-slate-500 mt-1">Registradas em {new Date().toLocaleDateString()}</p>
         </div>
 
