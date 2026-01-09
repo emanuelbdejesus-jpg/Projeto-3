@@ -53,17 +53,14 @@ const App: React.FC = () => {
 
     const newQuantity = tool.quantity - data.quantity;
 
-    // Check if hitting or falling below threshold
     if (newQuantity <= tool.minThreshold) {
       addToast(`ALERTA: ${tool.type} ${tool.model} atingiu nível crítico (${newQuantity} un.)`, 'warning');
     }
 
-    // Update Inventory
     setInventory(prev => prev.map(t => 
       t.id === data.toolId ? { ...t, quantity: newQuantity } : t
     ));
 
-    // Log Withdrawal
     const newWithdrawal: Withdrawal = {
       ...data,
       id: Math.random().toString(36).substr(2, 9),
@@ -72,6 +69,23 @@ const App: React.FC = () => {
     setWithdrawals(prev => [newWithdrawal, ...prev]);
     addToast("Retirada registrada com sucesso!", 'success');
     setActiveTab('dashboard');
+  };
+
+  const handleDeleteWithdrawal = (id: string) => {
+    const withdrawal = withdrawals.find(w => w.id === id);
+    if (!withdrawal) return;
+
+    // A confirmação agora é feita pelo modal customizado no HistoryList.tsx
+    // Devolver ao estoque
+    setInventory(prev => prev.map(tool => 
+      tool.id === withdrawal.toolId 
+        ? { ...tool, quantity: tool.quantity + withdrawal.quantity }
+        : tool
+    ));
+
+    // Remover do histórico
+    setWithdrawals(prev => prev.filter(w => w.id !== id));
+    addToast(`${withdrawal.toolName}: Registro excluído e estoque estornado.`, 'info');
   };
 
   const handleUpdateStock = (toolId: string, newQuantity: number) => {
@@ -99,7 +113,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      {/* Sidebar - Desktop */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex-shrink-0">
         <div className="p-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -153,18 +166,11 @@ const App: React.FC = () => {
               <p className="text-xs text-slate-300">
                 Existem {lowStockTools.length} itens abaixo do limite mínimo.
               </p>
-              <button 
-                onClick={() => handleNavigateToInventory('')}
-                className="mt-2 text-[10px] font-bold text-red-300 hover:text-white flex items-center gap-1 transition-colors"
-              >
-                Ver no Estoque <X size={10} className="rotate-45" />
-              </button>
             </div>
           </div>
         )}
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto pb-24 md:pb-8">
         <header className="mb-8 flex justify-between items-center">
           <div>
@@ -208,11 +214,11 @@ const App: React.FC = () => {
         {activeTab === 'history' && (
           <HistoryList 
             withdrawals={withdrawals} 
+            onDeleteWithdrawal={handleDeleteWithdrawal}
           />
         )}
       </main>
 
-      {/* Toasts Container */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
         {toasts.map(toast => (
           <div 
@@ -234,7 +240,6 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {/* Mobile Nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 text-white flex justify-around p-3 z-50 border-t border-slate-800">
         <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-blue-400' : 'text-slate-400'}><LayoutDashboard /></button>
         <button onClick={() => {setActiveTab('inventory'); setInventoryFilter('');}} className={activeTab === 'inventory' ? 'text-blue-400' : 'text-slate-400'}><Package /></button>

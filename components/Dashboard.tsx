@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Tool, Withdrawal, ToolModel } from '../types';
 import { REASONS } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Zap, Box, TrendingUp, AlertTriangle, Layers, ShieldCheck, Hexagon, FileWarning, Filter, XCircle, ArrowRight, BarChart3 } from 'lucide-react';
+import { Zap, Box, TrendingUp, AlertTriangle, Layers, ShieldCheck, Hexagon, FileWarning, Filter, XCircle, ArrowRight, BarChart3, Disc } from 'lucide-react';
 
 interface Props {
   inventory: Tool[];
@@ -93,7 +93,8 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
     return bitSpecs.map(spec => {
       const tool = inventory.find(t => t.type === spec.type && t.model === spec.model);
       return {
-        name: `${spec.type} - ${spec.model}`,
+        name: spec.type,
+        fullName: `${spec.type} - ${spec.model}`,
         model: spec.model,
         quantity: tool ? tool.quantity : 0,
         min: tool ? tool.minThreshold : 0
@@ -101,9 +102,18 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
     });
   }, [inventory]);
 
-  const withdrawalsTodayCount = useMemo(() => {
-    const today = new Date().toDateString();
-    return withdrawals.filter(w => new Date(w.date).toDateString() === today).length;
+  const withdrawalsTodayTotal = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    return withdrawals
+      .filter(w => {
+        const d = new Date(w.date);
+        return d >= today && d < tomorrow;
+      })
+      .reduce((acc, curr) => acc + curr.quantity, 0);
   }, [withdrawals]);
 
   const lowStockTools = useMemo(() => inventory.filter(t => t.quantity <= t.minThreshold), [inventory]);
@@ -150,8 +160,8 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // If no withdrawals, show last 7 days as zeroed points
     const startBase = earliestWithdrawalDate || new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    startBase.setHours(0, 0, 0, 0);
 
     if (range === 'diario') {
       let current = new Date(startBase);
@@ -274,10 +284,10 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Zap size={24} /></div>
-            <span className="text-xs font-semibold text-slate-400 uppercase">Saídas Hoje</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase">Qtd. Saídas Hoje</span>
           </div>
-          <p className="text-3xl font-bold text-slate-800">{withdrawalsTodayCount}</p>
-          <p className="text-sm text-slate-500 mt-1">Registradas em {new Date().toLocaleDateString()}</p>
+          <p className="text-3xl font-bold text-slate-800">{withdrawalsTodayTotal}</p>
+          <p className="text-sm text-slate-500 mt-1">Soma total de peças retiradas</p>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -367,18 +377,18 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
         </div>
       </div>
 
-      {/* JANELA DE ESTOQUE ATUAL - BITS */}
+      {/* JANELA: ESTOQUE ATUAL - BITS */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Hexagon size={22} className="text-orange-500" />
+            <Disc size={22} className="text-indigo-500" />
             Estoque Atual - Bits
           </h3>
-          <span className="text-xs font-bold text-slate-400 uppercase">Detalhamento Bits</span>
+          <span className="text-xs font-bold text-slate-400 uppercase">Período de Consumo</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {bitStock.map((bit) => (
-            <div key={bit.name} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col items-center justify-center transition-all hover:shadow-md">
+            <div key={bit.fullName} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col items-center justify-center transition-all hover:shadow-md">
               <span className={`text-[9px] font-black px-2 py-0.5 rounded-full mb-2 ${
                 bit.model === 'T51' ? 'bg-blue-600 text-white' : 
                 bit.model === 'T50' ? 'bg-emerald-600 text-white' : 
@@ -386,7 +396,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               }`}>
                 {bit.model}
               </span>
-              <p className="text-[11px] font-semibold text-slate-700 mb-1 text-center">{bit.name}</p>
+              <p className="text-[10px] font-bold text-slate-500 mb-1 text-center leading-tight h-8 flex items-center">{bit.name}</p>
               <div className="flex items-baseline gap-1">
                 <span className={`text-2xl font-black ${bit.quantity <= bit.min ? 'text-red-600' : 'text-slate-800'}`}>
                   {bit.quantity}
@@ -395,14 +405,11 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               </div>
               <div className="w-full mt-3 bg-slate-200 h-1 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full rounded-full ${bit.quantity <= bit.min ? 'bg-red-500' : 'bg-orange-500'}`}
-                  style={{ width: `${Math.min(100, (bit.quantity / 30) * 100)}%` }}
+                  className={`h-full rounded-full ${bit.quantity <= bit.min ? 'bg-red-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${Math.min(100, (bit.quantity / 35) * 100)}%` }}
                 ></div>
               </div>
-              <div className="mt-2 flex items-center gap-1.5">
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Min: {bit.min} un</span>
-                {bit.quantity <= bit.min && <AlertTriangle size={10} className="text-red-500" />}
-              </div>
+              <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">Min: {bit.min} un</p>
             </div>
           ))}
         </div>
@@ -416,7 +423,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               <BarChart3 size={22} className="text-blue-600" />
               Fluxo Total de Saída de Material
             </h3>
-            <p className="text-sm text-slate-500 mt-1">Evolução do volume total de ferramental retirado por período</p>
+            <p className="text-sm text-slate-500 mt-1">Volume total de peças retiradas por período</p>
           </div>
           
           <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -441,7 +448,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               <Tooltip 
                 cursor={{fill: '#f8fafc'} as any}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: any) => [`${value} unidades`, 'Total de Saídas'] as any}
+                formatter={(value: any) => [`${value} unidades`, 'Consumo Total']}
               />
               <Bar dataKey="totalOutput" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={50} />
             </BarChart>
@@ -453,7 +460,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
       <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col md:flex-row md:items-end gap-4">
         <div className="flex-1 space-y-1">
           <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
-            <Filter size={10} /> Filtro de Período Global para Estatísticas de Consumo
+            <Filter size={10} /> Filtro Global para Gráficos de Detalhamento
           </label>
           <div className="flex gap-2">
             <input 
@@ -480,15 +487,13 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* DETAILED CHART: CONSUMPTION BY SPECIFIC TOOL */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Box size={22} className="text-blue-500" />
-                Consumo Detalhado por Modelo
+                Consumo por Modelo
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Saídas por cada especificação técnica</p>
             </div>
           </div>
           <div className="h-[300px]">
@@ -496,7 +501,7 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
               <BarChart data={detailedTypeConsumptionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, angle: -15, textAnchor: 'end'} as any} height={60} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12} as any} />
+                <YAxis axisLine={false} tickLine={false} />
                 <Tooltip 
                   cursor={{fill: '#f8fafc'} as any}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -511,24 +516,22 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
           </div>
         </div>
 
-        {/* CONSUMPTION BY REASON CHART */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <FileWarning size={22} className="text-rose-500" />
-                Consumo por Motivo de Retirada
+                Consumo por Motivo
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Análise detalhada das causas de saída de material</p>
             </div>
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={reasonConsumptionData} layout="vertical" margin={{ left: 20, right: 40, top: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" axisLine={false} tickLine={false} hide />
+                <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={140} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' } as any} />
-                <Tooltip cursor={{fill: '#f8fafc'} as any} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                <Tooltip cursor={{fill: '#f8fafc'} as any} />
                 <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={24} label={{ position: 'right', fontSize: 12, fontWeight: 800, fill: '#1e293b' } as any}>
                   {reasonConsumptionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={reasonColors[index % reasonColors.length]} />
@@ -539,12 +542,6 @@ const Dashboard: React.FC<Props> = ({ inventory, withdrawals, onNavigateToInvent
           </div>
         </div>
       </div>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-      `}</style>
     </div>
   );
 };
