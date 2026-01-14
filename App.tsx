@@ -6,7 +6,8 @@ import Dashboard from './components/Dashboard';
 import InventoryList from './components/InventoryList';
 import WithdrawalForm from './components/WithdrawalForm';
 import HistoryList from './components/HistoryList';
-import { LayoutDashboard, ClipboardList, Package, History, AlertTriangle, X, Bell } from 'lucide-react';
+import { supabase } from './services/supabase';
+import { LayoutDashboard, ClipboardList, Package, History, AlertTriangle, X, Bell, Loader2 } from 'lucide-react';
 
 interface Toast {
   id: string;
@@ -15,24 +16,56 @@ interface Toast {
 }
 
 const App: React.FC = () => {
-  const [inventory, setInventory] = useState<Tool[]>(() => {
-    const saved = localStorage.getItem('stoper_inventory');
-    return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
-  });
-
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(() => {
-    const saved = localStorage.getItem('stoper_withdrawals');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [inventory, setInventory] = useState<Tool[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdraw' | 'history'>('dashboard');
   const [inventoryFilter, setInventoryFilter] = useState<string>('');
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Carregamento inicial de dados do Supabase
   useEffect(() => {
-    localStorage.setItem('stoper_inventory', JSON.stringify(inventory));
-    localStorage.setItem('stoper_withdrawals', JSON.stringify(withdrawals));
-  }, [inventory, withdrawals]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // 1. Fetch Inventory
+        const { data: invData, error: invError } = await supabase
+          .from('inventory')
+          .select('*')
+          .order('model', { ascending: false });
+
+        if (invError) throw invError;
+
+        if (!invData || invData.length === 0) {
+          // Se banco vazio, povoar com INITIAL_INVENTORY
+          const { error: seedError } = await supabase
+            .from('inventory')
+            .insert(INITIAL_INVENTORY);
+          if (seedError) throw seedError;
+          setInventory(INITIAL_INVENTORY);
+        } else {
+          setInventory(invData);
+        }
+
+        // 2. Fetch Withdrawals
+        const { data: witData, error: witError } = await supabase
+          .from('withdrawals')
+          .select('*')
+          .order('date', { ascending: false });
+
+        if (witError) throw witError;
+        setWithdrawals(witData || []);
+
+      } catch (err: any) {
+        console.error("Erro ao sincronizar com Supabase:", err);
+        addToast("Erro de conexão com o banco de dados.", 'warning');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const addToast = (message: string, type: 'warning' | 'info' | 'success' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -42,7 +75,7 @@ const App: React.FC = () => {
     }, 5000);
   };
 
-  const handleWithdrawal = (data: Omit<Withdrawal, 'id' | 'toolName'>) => {
+  const handleWithdrawal = async (data: Omit<Withdrawal, 'id' | 'toolName'>) => {
     const tool = inventory.find(t => t.id === data.toolId);
     if (!tool) return;
 
@@ -52,56 +85,108 @@ const App: React.FC = () => {
     }
 
     const newQuantity = tool.quantity - data.quantity;
+    const toolName = `${tool.type} ${tool.model}`;
 
-    if (newQuantity <= tool.minThreshold) {
-      addToast(`ALERTA: ${tool.type} ${tool.model} atingiu nível crítico (${newQuantity} un.)`, 'warning');
+    try {
+      // 1. Inserir Retirada
+      const { data: insertedWit, error: witErr } = await supabase
+        .from('withdrawals')
+        .insert([{ ...data, toolName }])
+        .select()
+        .single();
+
+      if (witErr) throw witErr;
+
+      // 2. Atualizar Estoque
+      const { error: invErr } = await supabase
+        .from('inventory')
+        .update({ quantity: newQuantity })
+        .eq('id', tool.id);
+
+      if (invErr) throw invErr;
+
+      // 3. Atualizar Estado Local
+      setInventory(prev => prev.map(t => t.id === tool.id ? { ...t, quantity: newQuantity } : t));
+      setWithdrawals(prev => [insertedWit, ...prev]);
+
+      if (newQuantity <= tool.minThreshold) {
+        addToast(`ALERTA: ${toolName} atingiu nível crítico (${newQuantity} un.)`, 'warning');
+      }
+
+      addToast("Retirada registrada com sucesso!", 'success');
+      setActiveTab('dashboard');
+    } catch (err) {
+      addToast("Erro ao processar retirada no banco.", 'warning');
     }
-
-    setInventory(prev => prev.map(t => 
-      t.id === data.toolId ? { ...t, quantity: newQuantity } : t
-    ));
-
-    const newWithdrawal: Withdrawal = {
-      ...data,
-      id: Math.random().toString(36).substr(2, 9),
-      toolName: `${tool.type} ${tool.model}`
-    };
-    setWithdrawals(prev => [newWithdrawal, ...prev]);
-    addToast("Retirada registrada com sucesso!", 'success');
-    setActiveTab('dashboard');
   };
 
-  const handleDeleteWithdrawal = (id: string) => {
+  const handleDeleteWithdrawal = async (id: string) => {
     const withdrawal = withdrawals.find(w => w.id === id);
     if (!withdrawal) return;
 
-    // A confirmação agora é feita pelo modal customizado no HistoryList.tsx
-    // Devolver ao estoque
-    setInventory(prev => prev.map(tool => 
-      tool.id === withdrawal.toolId 
-        ? { ...tool, quantity: tool.quantity + withdrawal.quantity }
-        : tool
-    ));
+    const tool = inventory.find(t => t.id === withdrawal.toolId);
+    if (!tool) return;
 
-    // Remover do histórico
-    setWithdrawals(prev => prev.filter(w => w.id !== id));
-    addToast(`${withdrawal.toolName}: Registro excluído e estoque estornado.`, 'info');
-  };
+    try {
+      // 1. Devolver ao estoque no banco
+      const { error: invErr } = await supabase
+        .from('inventory')
+        .update({ quantity: tool.quantity + withdrawal.quantity })
+        .eq('id', tool.id);
 
-  const handleUpdateStock = (toolId: string, newQuantity: number) => {
-    const tool = inventory.find(t => t.id === toolId);
-    if (tool && newQuantity <= tool.minThreshold && newQuantity < tool.quantity) {
-       addToast(`Estoque de ${tool.type} ${tool.model} está baixo!`, 'warning');
+      if (invErr) throw invErr;
+
+      // 2. Remover do histórico no banco
+      const { error: witErr } = await supabase
+        .from('withdrawals')
+        .delete()
+        .eq('id', id);
+
+      if (witErr) throw witErr;
+
+      // 3. Atualizar Estado Local
+      setInventory(prev => prev.map(t => t.id === tool.id ? { ...t, quantity: t.quantity + withdrawal.quantity } : t));
+      setWithdrawals(prev => prev.filter(w => w.id !== id));
+
+      addToast(`${withdrawal.toolName}: Registro excluído e estoque estornado.`, 'info');
+    } catch (err) {
+      addToast("Erro ao estornar registro.", 'warning');
     }
-    setInventory(prev => prev.map(t => 
-      t.id === toolId ? { ...t, quantity: Math.max(0, newQuantity) } : t
-    ));
   };
 
-  const handleUpdateThreshold = (toolId: string, newThreshold: number) => {
-    setInventory(prev => prev.map(t => 
-      t.id === toolId ? { ...t, minThreshold: Math.max(0, newThreshold) } : t
-    ));
+  const handleUpdateStock = async (toolId: string, newQuantity: number) => {
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ quantity: Math.max(0, newQuantity) })
+        .eq('id', toolId);
+
+      if (error) throw error;
+
+      setInventory(prev => prev.map(t => t.id === toolId ? { ...t, quantity: Math.max(0, newQuantity) } : t));
+      
+      const tool = inventory.find(t => t.id === toolId);
+      if (tool && newQuantity <= tool.minThreshold) {
+        addToast(`Estoque de ${tool.type} ${tool.model} está baixo!`, 'warning');
+      }
+    } catch (err) {
+      addToast("Erro ao atualizar estoque.", 'warning');
+    }
+  };
+
+  const handleUpdateThreshold = async (toolId: string, newThreshold: number) => {
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ minThreshold: Math.max(0, newThreshold) })
+        .eq('id', toolId);
+
+      if (error) throw error;
+
+      setInventory(prev => prev.map(t => t.id === toolId ? { ...t, minThreshold: Math.max(0, newThreshold) } : t));
+    } catch (err) {
+      addToast("Erro ao atualizar limite.", 'warning');
+    }
   };
 
   const handleNavigateToInventory = (filter: string) => {
@@ -110,6 +195,16 @@ const App: React.FC = () => {
   };
 
   const lowStockTools = useMemo(() => inventory.filter(t => t.quantity <= t.minThreshold), [inventory]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
+        <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+        <h2 className="text-xl font-bold">STOPER Cloud</h2>
+        <p className="text-slate-400 text-sm mt-2">Sincronizando com o banco de dados...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
